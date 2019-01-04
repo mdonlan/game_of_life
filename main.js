@@ -15,21 +15,36 @@ let fpsElem = document.querySelector(".fps");
 let fpsUpElem = document.querySelector(".fps_up");
 let fpsDownElem = document.querySelector(".fps_down");
 let restartElem = document.querySelector(".restart");
+let randomModeElem = document.querySelector(".random_mode");
+let drawModeElem = document.querySelector(".draw_mode");
+let clearAllElem = document.querySelector(".clear_all");
+let displayIsPaused = document.querySelector(".display_is_paused");
+let numTicksElem = document.querySelector(".num_ticks");
+let totalAliveElem = document.querySelector(".total_alive");
+let tilesChangedElem = document.querySelector(".tiles_changed");
+let spawnChanceElem = document.querySelector(".spawn_chance_elem");
 let canvas = document.querySelector(".canvas");
 let ctx = canvas.getContext("2d");
 // event listeners
-canvas.addEventListener("click", click);
+canvas.addEventListener("mousedown", mouseDown);
+canvas.addEventListener("mouseup", ()=>{mouseIsDown = false});
+canvas.addEventListener("mousemove", mouseMove);
 playElem.addEventListener("click", ()=>{pauseOrPlay(true)});
 pauseElem.addEventListener("click", ()=>{pauseOrPlay(false)});
-fpsElem.addEventListener("input", (e) => setFps(e));
+fpsElem.addEventListener("input", (e) => setUiValue(e));
+spawnChanceElem.addEventListener("input", (e) => setUiValue(e));
 restartElem.addEventListener("click", restart);
+randomModeElem.addEventListener("click", ()=>{setMode('random')});
+drawModeElem.addEventListener("click", ()=>{setMode('draw')});
+clearAllElem.addEventListener("click", ()=>{killAllTiles()});
+document.addEventListener('keydown', keyboardInput);
 
 canvas.height = window.innerHeight;
-canvas.width = window.innerWidth - 300; // 300px is for left_nav_ui
+canvas.width = window.innerWidth - 150; // 150px is for left_nav_ui
 
 let screenRatio = canvas.height / canvas.width;
 
-let tilesPerRow = 100;
+let tilesPerRow = 125;
 let tilesPerCol = Math.round(tilesPerRow * screenRatio);
 
 let tileWidth = canvas.width / tilesPerRow;
@@ -46,11 +61,17 @@ let Tile = {
     neighbors: [],
     isSelected: false,
     nextGenAlive: false, // determines state for next gen
+    hasBeenDiscovered: false,
 }
 
 let aliveColor = '#222222';
 let deadColor = '#dddddd';
-let aliveSpawnChance = 0.2;
+let discoveredColor = '#2ea548';
+let spawnAliveChance = 0.1;
+let numTicks = 0;
+
+let totalAlive = 0;
+let lastTotalAlive = 0;
 
 //fps related / timing
 let timeNow = performance.now(); 
@@ -58,38 +79,71 @@ let timeLastUpdate = performance.now();
 let targetFPS = 10;
 
 let clickedTile = null;
-let isPaused = false;
+pauseOrPlay(true);
+
+let mouseIsDown = false;
+let shiftIsDown = false;
+let mousePos = {x: null, y: null};
 
 // // //
 
-function click(e) {
-    // clear old selected tiles
-    if(clickedTile) {
-        clickedTile.isSelected = false;
-        clickedTile.neighbors.forEach((neighbor) => {
-            neighbor.isSelected = false;
-        });
+function mouseMove(e) {
+    mousePos = {x: e.clientX, y: e.clientY};
+    if(e.shiftKey) {
+        shiftIsDown = true;
+    } else {
+        shiftIsDown = false;
     }
+}
 
-    // get and display new selected tiles and neighbors
-    // convert click pos to tile coords
-    let x = Math.floor(e.clientX / tileWidth);
-    let y = Math.floor(e.clientY / tileHeight);
+function mouseDown(e) {
+    mousePos = {x: e.clientX, y: e.clientY};
+    mouseIsDown = true
+}
+
+function keyboardInput(e) {
+  // on space press toggle paused
+  if(e.code == 'Space') {
+    if(isPaused) {
+      pauseOrPlay(true);
+    } else {
+      pauseOrPlay(false);
+    }
+  }
+}
+
+function click(e) {
+    // console.log('click')
+    // // clear old selected tiles
+    // if(clickedTile) {
+    //     clickedTile.isSelected = false;
+    //     clickedTile.neighbors.forEach((neighbor) => {
+    //         neighbor.isSelected = false;
+    //     });
+    // }
+
+    // // get and display new selected tiles and neighbors
+    // // convert click pos to tile coords
+    // let x = Math.floor((e.clientX - 150)/ tileWidth); // -150 for left_ui offset
+    // let y = Math.floor(e.clientY / tileHeight);
     
-    clickedTile = tiles[x][y];
+    // clickedTile = tiles[x][y];
 
-    clickedTile.isSelected = true;
-    clickedTile.neighbors.forEach((neighbor) => {
-        neighbor.isSelected = true;
-    });
+    // // onclick toggle the alive status of clicked tile
+    // clickedTile.alive = !clickedTile.alive;
+    // clickedTile.nextGenAlive = !clickedTile.nextGenAlive;
+
+    // ctx.clearRect(0, 0, canvas.width, canvas.height);
+    // drawTiles();
 }
 
 function pauseOrPlay(setToPlay) {
-  console.log(setToPlay)
   if(setToPlay) {
     isPaused = false;
+    displayIsPaused.style.opacity = 0;
   } else {
     isPaused = true;
+    displayIsPaused.style.opacity = 1;
   }
 }
 
@@ -103,7 +157,7 @@ function createTiles() {
 
             // set dead or alive
             let r = Math.random();
-            if (r > (1 - aliveSpawnChance)) t.alive = true;
+            if (r > (1 - spawnAliveChance)) t.alive = true;
 
             tiles[x].push(t);
         }
@@ -127,7 +181,15 @@ function drawTiles() {
             if(tile.isSelected) {
                 ctx.fillStyle = "Green";
             } else {
-                ctx.fillStyle = tile.alive ? aliveColor : deadColor;
+                if(tile.alive) {
+                    ctx.fillStyle = aliveColor;
+                } else { // dead
+                    if(tile.hasBeenDiscovered) {
+                        ctx.fillStyle = discoveredColor;
+                    } else {
+                        ctx.fillStyle = deadColor;
+                    }
+                }
             }
 
             ctx.beginPath();
@@ -166,6 +228,9 @@ function checkTilesNextGen() {
         Any dead cell with exactly three live neighbors becomes a live cell, as if by reproduction.
     */
 
+    // count how many there are alive this frame
+    let totalAlive = 0;
+
     // get next gen alive or dead
     for (let x = 0; x < tilesPerRow; x++) {
         for (let y = 0; y < tilesPerCol; y++) {
@@ -184,7 +249,11 @@ function checkTilesNextGen() {
                     tile.nextGenAlive = false;
                 } else {
                     tile.nextGenAlive = true; // 2 or 3 live on
+                    // if tile is alive mark as discovered
+                   tile.hasBeenDiscovered = true;
                 }
+
+                totalAlive++;
             } else if(!tile.alive) {
                 if(neighborsAlive == 3) { // if dead w/ 3 live neighbors make alive from reproduction / colonization
                     tile.nextGenAlive = true;
@@ -193,21 +262,65 @@ function checkTilesNextGen() {
         }
     }
     
+    
     // update to nextGenAlive or dead
     for (let x = 0; x < tilesPerRow; x++) {
         for (let y = 0; y < tilesPerCol; y++) {        
             tiles[x][y].alive = tiles[x][y].nextGenAlive;
         }
     }
+
+    // display total alive
+    totalAliveElem.innerHTML = "Alive: " + totalAlive;
+    tilesChangedElem.innerHTML = "Changed: " + (totalAlive - lastTotalAlive);
+    lastTotalAlive = totalAlive;
+}
+
+function setMode(modeType) {
+  console.log('set to mode: ' + modeType);
+
+  if(modeType == 'random') {
+    pauseOrPlay(true)
+    restart();
+  }
+
+  if(modeType == 'draw') {
+    pauseOrPlay(false)
+  }
+}
+
+function toggleAlive() {
+    // if mouse is over a tile and mouseDown then draw the tile
+    let x = Math.floor((mousePos.x - 150)/ tileWidth); // -150 for left_ui offset
+    let y = Math.floor(mousePos.y / tileHeight);
+    let overTile = tiles[x][y];
+
+    // if shift is down set dead
+    // else set alive
+    if(shiftIsDown) {
+        overTile.alive = false;
+        overTile.nextGenAlive = false;
+    } else {
+        overTile.alive = true;
+        overTile.nextGenAlive = true;
+    }
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    drawTiles();
 }
 
 function update() {
+
+    if(mouseIsDown) toggleAlive();
 
     if(!isPaused) { // if not paused do update stuff
       timeNow = performance.now();
       let elapsed = timeNow - timeLastUpdate;
       // only actually redraw at our desired framerate
+      // actual update happens in here
       if(elapsed / (1000 / targetFPS) >= 1) {
+          numTicks++;
+          numTicksElem.innerHTML = "Num Ticks: " + numTicks;
           timeLastUpdate = timeNow;
           ctx.clearRect(0, 0, canvas.width, canvas.height);
           checkTilesNextGen();
@@ -217,13 +330,26 @@ function update() {
     requestAnimationFrame(update);
 }
 
+function killAllTiles() {
+  for (let x = 0; x < tilesPerRow; x++) {
+    for (let y = 0; y < tilesPerCol; y++) {   
+        tiles[x][y].alive = false;     
+        tiles[x][y].nextGenAlive = false;
+    }
+  }
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  drawTiles();
+}
+
 function restart() {
   // reset all the things
   for (let x = 0; x < tilesPerRow; x++) {
     for (let y = 0; y < tilesPerCol; y++) {   
         // set dead or alive
         let r = Math.random();
-        if (r > (1 - aliveSpawnChance)) tiles[x][y].alive = true;     
+        if (r > (1 - spawnAliveChance)) {
+          tiles[x][y].alive = true;     
+        }
     }
   }
 }

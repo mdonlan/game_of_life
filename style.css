@@ -10,7 +10,7 @@ html, body {
 
 .left_ui_container {
     height: 100%;
-    width: 300px;
+    width: 150px;
     background: #222222;
     display: flex;
     flex-direction: column;
@@ -54,4 +54,15 @@ html, body {
 
 .restart {
     cursor: pointer;
+}
+
+.display_is_paused {
+    position: absolute;
+    width: 300px;
+    top: 100px;
+    left: calc(50% - 200px);
+    color: #a52e2e;
+    font-size: 52px;
+    font-weight: bold;
+    pointer-events: none;
 }
