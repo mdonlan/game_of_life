@@ -1,33 +1,14 @@
 let checkIfNum = new RegExp('^[0-9]+$');
 
 function setInitialUI() {
-  // set up all nessesary starting ui data
-  fpsElem.innerHTML = targetFPS;
-  spawnChanceElem.innerHTML = spawnAliveChance;
-}
+    // set up all nessesary starting ui data
+    fpsElem.innerHTML = targetFPS;
+    spawnChanceElem.innerHTML = spawnAliveChance;
+    showDiscoveredElem.innerHTML = showDiscoveredTiles;
 
-function setFps(e) {
-//   let checkIfNum = new RegExp('^[0-9]+$');
-//   let isNum = checkIfNum.exec(e.data);
-//   if(isNum) {
-//     let input = parseInt(e.target.innerHTML);
-    
-//     if(input > 60) { // 60 is max -- not really for any reason though
-//       targetFPS = 60;
-//       fpsElem.innerHTML = targetFPS;
-//     } else {
-//       targetFPS = input;
-//     }
-//   } else { // if not a number
-//     // if enter reset text to match fps val by removing linebreak
-//     if(e.inputType == 'insertParagraph' || e.inputType == 'insertText') {
-//       fpsElem.innerHTML = targetFPS;
-//     }
-//     // if delete update fps to match new value
-//     if(e.inputType == 'deleteContentBackward') {
-//       targetFPS = e.target.innerHTML;
-//     }
-//   }
+    if(showDiscoveredTiles) {
+        showDiscoveredElem.classList.add('bool_button_enabled');    
+    }
 }
 
 function setUiValue(e) {
@@ -68,5 +49,21 @@ function setUiValue(e) {
         if(e.inputType == 'deleteContentBackward') {
             e.target.dataset.value = e.target.innerHTML;
         }
+    }
+}
+
+function toggleUiValue(e) {
+    // toggle a ui bool value
+    
+    if(e.target.innerHTML == 'true') {
+        e.target.innerHTML = 'false';
+        window[e.target.dataset.value] = false;
+        e.target.classList.remove("bool_button_enabled");
+        e.target.classList.add("bool_button_disabled");
+    } else if(e.target.innerHTML = 'false') {
+        e.target.innerHTML = 'true';
+        window[e.target.dataset.value] = true;
+        e.target.classList.add("bool_button_enabled");
+        e.target.classList.remove("bool_button_disabled");
     }
 }

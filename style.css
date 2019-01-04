@@ -8,6 +8,10 @@ html, body {
     color: #dddddd;
 }
 
+.canvas {
+    background: #a7a6a6;
+}
+
 .left_ui_container {
     height: 100%;
     width: 150px;
@@ -65,4 +69,20 @@ html, body {
     font-size: 52px;
     font-weight: bold;
     pointer-events: none;
+}
+
+.show_discovered {
+
+}
+
+.bool_button {
+    color: purple;
+}
+
+.bool_button_enabled {
+    color: green;    
+}
+
+.bool_button_disabled {
+    color: red;    
 }
