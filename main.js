@@ -1,7 +1,6 @@
 // conway's game of life
 // each tile (cell) has two states, dead and alive
 // each tile's status can be updated if certain conditions are met
-
 /*
     Any live cell with fewer than two live neighbors dies, as if by underpopulation.
     Any live cell with two or three live neighbors lives on to the next generation.
@@ -9,15 +8,28 @@
     Any dead cell with exactly three live neighbors becomes a live cell, as if by reproduction.
 */
 
+// DOM elems
+let playElem = document.querySelector(".play_icon");
+let pauseElem = document.querySelector(".pause_icon");
+let fpsElem = document.querySelector(".fps");
+let fpsUpElem = document.querySelector(".fps_up");
+let fpsDownElem = document.querySelector(".fps_down");
+let restartElem = document.querySelector(".restart");
 let canvas = document.querySelector(".canvas");
 let ctx = canvas.getContext("2d");
+// event listeners
+canvas.addEventListener("click", click);
+playElem.addEventListener("click", ()=>{pauseOrPlay(true)});
+pauseElem.addEventListener("click", ()=>{pauseOrPlay(false)});
+fpsElem.addEventListener("input", (e) => setFps(e));
+restartElem.addEventListener("click", restart);
 
 canvas.height = window.innerHeight;
-canvas.width = window.innerWidth;
+canvas.width = window.innerWidth - 300; // 300px is for left_nav_ui
 
 let screenRatio = canvas.height / canvas.width;
 
-let tilesPerRow = 50;
+let tilesPerRow = 100;
 let tilesPerCol = Math.round(tilesPerRow * screenRatio);
 
 let tileWidth = canvas.width / tilesPerRow;
@@ -38,16 +50,18 @@ let Tile = {
 
 let aliveColor = '#222222';
 let deadColor = '#dddddd';
-let aliveSpawnChance = 0.5;
+let aliveSpawnChance = 0.2;
 
 //fps related / timing
 let timeNow = performance.now(); 
 let timeLastUpdate = performance.now();
 let targetFPS = 10;
-let fpsTime = 1000 / targetFPS;
 
 let clickedTile = null;
-canvas.addEventListener("click", click);
+let isPaused = false;
+
+// // //
+
 function click(e) {
     // clear old selected tiles
     if(clickedTile) {
@@ -68,6 +82,15 @@ function click(e) {
     clickedTile.neighbors.forEach((neighbor) => {
         neighbor.isSelected = true;
     });
+}
+
+function pauseOrPlay(setToPlay) {
+  console.log(setToPlay)
+  if(setToPlay) {
+    isPaused = false;
+  } else {
+    isPaused = true;
+  }
 }
 
 function createTiles() {
@@ -156,7 +179,6 @@ function checkTilesNextGen() {
             });
             
             // determine what to do to the tile based on the number of neighbors alive
-            
             if(tile.alive) {
                 if(neighborsAlive < 2 || neighborsAlive > 3) { // under 2 die underpopulation, over 3 die overpop
                     tile.nextGenAlive = false;
@@ -168,7 +190,6 @@ function checkTilesNextGen() {
                     tile.nextGenAlive = true;
                 }
             }
-            
         }
     }
     
@@ -178,29 +199,39 @@ function checkTilesNextGen() {
             tiles[x][y].alive = tiles[x][y].nextGenAlive;
         }
     }
-
 }
 
 function update() {
 
-    timeNow = performance.now();
-    let elapsed = timeNow - timeLastUpdate;
-   
-    // only actually redraw at our desired framerate
-    if(elapsed / fpsTime >= 1) {
-        timeLastUpdate = timeNow;
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        checkTilesNextGen();
-        drawTiles();
+    if(!isPaused) { // if not paused do update stuff
+      timeNow = performance.now();
+      let elapsed = timeNow - timeLastUpdate;
+      // only actually redraw at our desired framerate
+      if(elapsed / (1000 / targetFPS) >= 1) {
+          timeLastUpdate = timeNow;
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          checkTilesNextGen();
+          drawTiles();
+      }
     }
-
-    
     requestAnimationFrame(update);
+}
+
+function restart() {
+  // reset all the things
+  for (let x = 0; x < tilesPerRow; x++) {
+    for (let y = 0; y < tilesPerCol; y++) {   
+        // set dead or alive
+        let r = Math.random();
+        if (r > (1 - aliveSpawnChance)) tiles[x][y].alive = true;     
+    }
+  }
 }
 
 function start() {
     createTiles();
     drawTiles();
+    setInitialUI();
 
     //console.log(tiles)
     update();

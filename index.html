@@ -1,12 +1,24 @@
 <html>
-  <head>
-    <title>game of life</title>
-    <link rel="stylesheet" href="style.css">
-  </head>
+    <head>
+        <title>game of life</title>
+        <link rel="stylesheet" href="style.css">
+    </head>
 
-  <body>
-    <canvas class="canvas"></canvas>
+    <body>
+        <div class="left_ui_container">
+            <div class="left_ui_row">
+                <div class="play_icon"></div>
+                <div class="pause_icon"></div>
+            </div>
+            <div class="left_ui_row">
+                <div>FPS:</div>
+                <div class="fps" contenteditable="true">--</div>
+            </div>
+            <div class="restart">Restart</div>
+        </div>
+        <canvas class="canvas"></canvas>
 
-    <script src="main.js" defer></script>
-  </body>
+        <script src="ui.js" defer></script>
+        <script src="main.js" defer></script>
+    </body>
 </html>
