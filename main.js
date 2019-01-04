@@ -24,6 +24,7 @@ let totalAliveElem = document.querySelector(".total_alive");
 let tilesChangedElem = document.querySelector(".tiles_changed");
 let spawnChanceElem = document.querySelector(".spawn_chance_elem");
 let canvas = document.querySelector(".canvas");
+
 let ctx = canvas.getContext("2d");
 // event listeners
 canvas.addEventListener("mousedown", mouseDown);
@@ -44,11 +45,14 @@ canvas.width = window.innerWidth - 150; // 150px is for left_nav_ui
 
 let screenRatio = canvas.height / canvas.width;
 
-let tilesPerRow = 125;
+let tilesPerRow = 200;
 let tilesPerCol = Math.round(tilesPerRow * screenRatio);
 
-let tileWidth = canvas.width / tilesPerRow;
-let tileHeight = canvas.height / tilesPerCol;
+let tileWidth = Math.round(canvas.width / tilesPerRow);
+let tileHeight = Math.round(canvas.height / tilesPerCol);
+
+console.log(tileWidth);
+console.log(tileHeight)
 
 let tiles = [];
 
@@ -59,9 +63,10 @@ let Tile = {
     w: tileWidth,
     alive: false,
     neighbors: [],
-    isSelected: false,
     nextGenAlive: false, // determines state for next gen
     hasBeenDiscovered: false,
+    worldX: null,
+    worldY: null
 }
 
 let aliveColor = '#222222';
@@ -154,6 +159,8 @@ function createTiles() {
             let t = Object.assign({}, Tile); 
             t.x = x;
             t.y = y;
+            t.worldX = x * tileWidth;
+            t.worldY = y * tileHeight;
 
             // set dead or alive
             let r = Math.random();
@@ -174,30 +181,67 @@ function createTiles() {
 }
 
 function drawTiles() {
+
+    let aliveTiles = [];
+    let deadTiles = [];
+    let discoveredTiles = [];
+
     for (let x = 0; x < tilesPerRow; x++) {
         for (let y = 0; y < tilesPerCol; y++) {
             let tile = tiles[x][y];
 
-            if(tile.isSelected) {
-                ctx.fillStyle = "Green";
-            } else {
-                if(tile.alive) {
-                    ctx.fillStyle = aliveColor;
-                } else { // dead
-                    if(tile.hasBeenDiscovered) {
-                        ctx.fillStyle = discoveredColor;
-                    } else {
-                        ctx.fillStyle = deadColor;
-                    }
+            if(tile.alive) {
+                //ctx.fillStyle = aliveColor;
+                aliveTiles.push(tile);
+            } else { // dead
+                if(tile.hasBeenDiscovered) {
+                    //ctx.fillStyle = discoveredColor;
+                    discoveredTiles.push(tile);
+                } else {
+                    //ctx.fillStyle = deadColor;
+                    deadTiles.push(tile);
                 }
             }
 
-            ctx.beginPath();
-            ctx.moveTo(tile.x * tile.w, tile.y * tile.h);
-            ctx.rect(tile.x * tile.w, tile.y * tile.h, tile.w - 1, tile.h - 1); // -1 to show spacing between tiles
-            ctx.fill();
+            // ctx.beginPath();
+            // ctx.moveTo(tile.x * tile.w, tile.y * tile.h);
+            // ctx.rect(tile.x * tile.w, tile.y * tile.h, tile.w - 1, tile.h - 1); // -1 to show spacing between tiles
+            // ctx.fill();
         }
     }
+
+    //
+    // seperating the draw operations seems to help speed alot!
+    //
+
+    ctx.fillStyle = aliveColor;
+    ctx.beginPath();
+    aliveTiles.forEach((tile) => {
+        ctx.moveTo(tile.worldX, tile.worldY);
+        ctx.rect(tile.worldX, tile.worldY, tile.w - 1, tile.h - 1); // -1 to show spacing between tiles
+    });
+    ctx.fill();
+
+    // dead tiles take BY FAR the most time to render
+    // this is just cause there are so many of them
+    // do we really need to draw each blank tiles?
+    // another way to get grid lines would be to draw one large image with lines
+    // or just go with no grid lines
+    ctx.fillStyle = deadColor;
+    ctx.beginPath();
+    deadTiles.forEach((tile) => {
+        ctx.moveTo(tile.worldX, tile.worldY);
+        ctx.rect(tile.worldX, tile.worldY, tile.w - 1, tile.h - 1); // -1 to show spacing between tiles
+    });
+    ctx.fill();
+
+    ctx.fillStyle = discoveredColor;
+    ctx.beginPath();
+    discoveredTiles.forEach((tile) => {
+        ctx.moveTo(tile.worldX, tile.worldY);
+        ctx.rect(tile.worldX, tile.worldY, tile.w - 1, tile.h - 1); // -1 to show spacing between tiles
+    });
+    ctx.fill();
 }
 
 function getNeighbors(tile) {
